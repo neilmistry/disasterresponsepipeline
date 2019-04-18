@@ -23,6 +23,15 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, precision_score, recall_score, f1_score
 
 def load_data(database_filepath):
+    """
+    Loads data from SQL lite database
+    Args:
+        database_filepath: path to database
+    Returns:
+        (DataFrame) X: feature
+        (DataFrame) Y: labels
+    """
+    
     engine = create_engine('sqlite:///' + database_filepath)
     df = pd.read_sql_table('df',engine)
     X = df['message']
@@ -31,6 +40,14 @@ def load_data(database_filepath):
     return X, y, category_names
 
 def tokenize(text):
+    """
+    Tokenizes each sentence in a given text.
+    Args:
+        text: text string
+    Returns:
+        (str[]): array of clean words
+    """
+    
     text.lower() # convert to lowercase
     text = re.sub(r"[^a-zA-Z0-9]", " ", text) #remove punctuation
     words = word_tokenize(text) # tokenize by individual word
@@ -41,17 +58,27 @@ def tokenize(text):
 
 
 def build_model():
+    """Builds pipline for classification model """
+    
     pipeline = Pipeline([
         ('vect', CountVectorizer(tokenizer=tokenize)),
         ('tfidf', TfidfTransformer()),
         ('clf', MultiOutputClassifier(RandomForestClassifier()))
     ])
+    
+    parameters = {
+        'vect__ngram_range': ((1, 1), (1, 2)),
+        'clf__estimator__min_samples_split': [2, 4],
+    }
+    
+    cv = GridSearchCV(pipeline, param_grid=parameters)
 
-
-    return pipeline
+    return cv
 
 
 def evaluate_model(model, X_test, Y_test, category_names):
+    """Evaluate model using testing dataset """
+    
     y_preds = model.predict(X_test)
     predictions = pd.DataFrame(data=y_preds, columns=Y_test.columns, index=Y_test.index)
     for col in Y_test.columns:
@@ -59,6 +86,7 @@ def evaluate_model(model, X_test, Y_test, category_names):
 
 
 def save_model(model, model_filepath):
+    """save our model to a python pickle file ('pkl') """
     pickle.dump(model, open(model_filepath, 'wb'))
 
 
